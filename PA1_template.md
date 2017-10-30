@@ -357,17 +357,13 @@ mean_weekday <- aggregate(steps ~ interval, data=na_removed_fixed_wn[na_removed_
 ```
 
 Finally plotting:
-IT has not been mentioned that the plots should be together. However, we need to fix the "y" range the same for both plots.
+IT has not been mentioned that the plots should be together. However, we need to fix the "y" range the same for both plotsz
 
 
 ```r
+par(mfrow=c(2,1))
 plot(mean_weekend$interval, mean_weekend$steps, type = "l", xlab = "interval", ylab = "average steps", main = "Weekends", ylim = c(0,200))
-```
-
-![](PA1_template_files/figure-html/unnamed-chunk-26-1.png)<!-- -->
-
-```r
 plot(mean_weekday$interval, mean_weekday$steps, type = "l", xlab = "interval", ylab = "average steps",main = "Week days", ylim = c(0,200))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-27-1.png)<!-- -->
+![](PA1_template_files/figure-html/unnamed-chunk-26-1.png)<!-- -->
