@@ -8,18 +8,192 @@ output:
 
 ## Loading and preprocessing the data
 
+We do not include the file downloading code, as the data is alos included in the repo. 
+We need to load the csv file, but I do the unziping at the same time. We need the header, and if you look at the file, you see that the separator is ",". So, the loading code is:
 
+```{r  cashe=TRUE}
+steps_data <- read.csv(unz("activity.zip", "activity.csv"), header=T,  sep=",")
+```
+
+we also need to make sure that the date column is a real date variable:
+
+```{r  cashe=TRUE}
+steps_data$date <- as.Date(as.character(steps_data[,2]))
+```
 
 ## What is mean total number of steps taken per day?
 
+The handiest function for that would be the "aggerage" functions:
 
+```{r  cashe=TRUE}
+total_steps <- aggregate(steps ~ date, data=steps_data, sum , na.rm=TRUE )
+mean_steps <- aggregate(steps ~ date, data=steps_data, mean , na.rm=TRUE )
+head(total_steps)
+head(mean_steps)
+```
+
+Then we can make a histogram of the the total steps. I the simplest way is plotting a bar plot:
+
+```{r  cashe=TRUE}
+barplot(total_steps$steps, names.arg = total_steps$date,  ylab="Total Steps", xlab="Date")
+```
+
+and also the average value instagram:
+```{r  cashe=TRUE}
+barplot(mean_steps$steps, names.arg = total_steps$date,  ylab="Average Steps", xlab="Date")
+```
+
+
+we can also calculate the median: 
+```{r  cashe=TRUE, results="hide"}
+median_steps <- aggregate(steps ~ date, data=steps_data, FUN=median , na.rm=TRUE )
+```
+
+Let's look at the summary:
+```{r  cashe=TRUE}
+summary(median_steps)
+```
+
+But the median value is zero for all days. Since this seems a little strange, I focus on one day, naturally the day with the maximum of total steps, November 23rd, and then we calculate the quantile:
+
+```{r  cashe=TRUE}
+steps_11_23 <- steps_data[steps_data$date=="2012-11-23",]
+quantile(steps_11_23$steps)
+```
+
+as you an see, the median is zero.
 
 ## What is the average daily activity pattern?
 
+We need to aggregate data based on the interval:
+
+```{r  cashe=TRUE}
+average_interval_steps <- aggregate(steps ~ interval, data=steps_data, mean , na.rm=TRUE )
+head(average_interval_steps)
+```
+
+Then we need to plot it in the simplest way:
+```{r  cashe=TRUE}
+plot(average_interval_steps$interval, average_interval_steps$steps, type = "l", xlab = "interval", ylab = "average steps")
+```
 
 
 ## Imputing missing values
 
+The total number of missing values can be calculated using:
 
+```{r  cashe=TRUE}
+nrow(steps_data[is.na(steps_data$steps),] )
+```
+
+My strategy is that in the missing days, the data should be somehow similar to the other recorded days. So, I anticipate that the average steps in the interval does not change. 
+
+I can use  the "na.mean" function. This function takes a vector, andd fills the na values by the mean of the other values. First, we need to load the library:
+
+```{r  cashe=TRUE}
+library(imputeTS)
+```
+
+
+I have to apply that to all days for each interval value:
+
+```{r  cashe=TRUE}
+na_removed  <- by(steps_data, steps_data$interval, function(x)  na.mean(x) )
+```
+
+The result is a long list that is seprated by the interval values. We just need to collaps the list into a data frame. For this last part we need an extra package:
+
+```{r  cashe=TRUE}
+library(data.table)
+```
+
+Then 
+```{r  cashe=TRUE}
+na_removed_fixed <- rbindlist(na_removed, use.names = TRUE) 
+```
+
+To see how the data has changed we plot the newly generated data frame again. Firs, we need to aggregate again through the dates (Hint! we do not need na.rm anymore):
+
+```{r  cashe=TRUE}
+average_na_removed  <- aggregate(steps ~ interval, data=na_removed_fixed, mean  )
+head(average_na_removed)
+```
+
+It is pretty clear that the average has not changed. Just for checking:
+
+```{r  cashe=TRUE}
+plot(average_na_removed$interval, average_na_removed$steps, type = "l", xlab = "interval", ylab = "average steps")
+```
+
+Althoug the average per interval has not changed, the histrogram of the daly steps has chnaged:
+
+```{r  cashe=TRUE}
+total_steps_na_removed  <- aggregate(steps ~ date, data=na_removed_fixed, sum  )
+mean_steps_na_removed <- aggregate(steps ~ date, data=na_removed_fixed, mean  )
+median_steps_na_removed <- aggregate(steps ~ date, data=na_removed_fixed, median )
+head(total_steps_na_removed)
+head(mean_steps_na_removed)
+head(median_steps_na_removed)
+```
+
+The total steps per day after imputing the mean value for NAs:
+
+```{r  cashe=TRUE}
+barplot(total_steps_na_removed$steps, names.arg = total_steps_na_removed$date,  ylab="Total Steps", xlab="Date")
+```
+
+The average steps per day after imputing the mean value for NAs:
+
+```{r  cashe=TRUE}
+barplot(mean_steps_na_removed$steps, names.arg = mean_steps_na_removed$date,  ylab="Total Steps", xlab="Date")
+```
+
+The median of steps per day haas changed for only a few days. Pleas notice that this median was all zero before removing the NaS. 
+
+```{r  cashe=TRUE}
+barplot(median_steps_na_removed$steps, names.arg = median_steps_na_removed$date,  ylab="Total Steps", xlab="Date")
+```
+
+
+We calculated that the median of the raw data in all days is zero. But what about the median of the data when the na's are removed?
+
+
+```{r  cashe=TRUE, results="hide"}
+median_na_removed_steps <- aggregate(steps ~ date, data=na_removed_fixed, FUN=median , na.rm=TRUE )
+```
+
+Just having a look on the summary of the median:
+```{r  cashe=TRUE}
+summary(median_na_removed_steps)
+```
+
+Looking at the Summary, it is clear that the median has changed. 
+
+In short, by removing Na's by adding the interval average, daily results are changed, median of the reuslts have changed, but the average per interval has not changed as we anticipated. 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+We need to mutate a new column by a conditional function. I use dplyr package. 
+
+```{r  cashe=TRUE}
+library(dplyr)
+na_removed_fixed_wn <-  mutate(na_removed_fixed, weekEnd=ifelse(weekdays(na_removed_fixed$date) %in% c("Saturday", "Sunday"), "WEEKEND", "WEEKDAY") )
+```
+
+
+Now averaging over all week days and weekends
+
+```{r  cashe=TRUE}
+mean_weekend <- aggregate(steps ~ interval, data=na_removed_fixed_wn[na_removed_fixed_wn$weekEnd=="WEEKEND", ] , mean)
+mean_weekday <- aggregate(steps ~ interval, data=na_removed_fixed_wn[na_removed_fixed_wn$weekEnd=="WEEKDAY", ] , mean)
+```
+
+Finally plotting:
+IT has not been mentioned that the plots should be together. However, we need to fix the "y" range the same for both plots.
+
+```{r  cashe=TRUE}
+plot(mean_weekend$interval, mean_weekend$steps, type = "l", xlab = "interval", ylab = "average steps", main = "Weekends", ylim = c(0,200))
+```
+```{r  cashe=TRUE}
+plot(mean_weekday$interval, mean_weekday$steps, type = "l", xlab = "interval", ylab = "average steps",main = "Week days", ylim = c(0,200))
+```
