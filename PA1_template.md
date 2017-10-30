@@ -136,6 +136,8 @@ plot(average_interval_steps$interval, average_interval_steps$steps, type = "l", 
 
 ![](PA1_template_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
+The maximum steps happens at 8:35
+
 
 ## Imputing missing values
 
